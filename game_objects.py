@@ -7,22 +7,24 @@ from __future__ import annotations
 from random import shuffle, seed, randint, choice, choices
 import tkinter as tk
 from tkinter import messagebox
+import requests
+
 
 class Card:
 
     # class variable here
     operations_table = {
-        "+" : lambda currentValue, cardValue: currentValue +  cardValue,
-        "-" : lambda currentValue, cardValue: currentValue -  cardValue,
-        "*" : lambda currentValue, cardValue: currentValue *  cardValue,
+        "+": lambda currentValue, cardValue: currentValue + cardValue,
+        "-": lambda currentValue, cardValue: currentValue - cardValue,
+        "*": lambda currentValue, cardValue: currentValue * cardValue,
         "//": lambda currentValue, cardValue: currentValue // cardValue,
         "**": lambda currentValue, cardValue: currentValue ** cardValue,
-        "%" : lambda currentValue, cardValue: currentValue %  cardValue
+        "%": lambda currentValue, cardValue: currentValue % cardValue
     }
 
     # generate cost for shop phase
     cost_tiers = {
-        "+" : 1, "-" : 1, "*" : 2, "//": 2, "**": 3, "%" : 3
+        "+": 1, "-": 1, "*": 2, "//": 2, "**": 3, "%": 3
     }
 
     card_back_path = "assets/Cards/back.png"
@@ -30,7 +32,7 @@ class Card:
     def __init__(self, operation: str, value: int, filepath: str, cost: int = None, ) -> None:
         """
         Card class contain all card logic.
-    
+
         **Args:**
 
         `operation`: Python operation.
@@ -49,7 +51,8 @@ class Card:
         self._filepath: str = filepath
 
         # find cost and function
-        self.cost: int = self.value*self.cost_tiers[self.operation] if cost == None else cost
+        self.cost: int = self.value * \
+            self.cost_tiers[self.operation] if cost == None else cost
         self._function: function = self.operations_table[self.operation]
 
     def __str__(self) -> str:
@@ -74,11 +77,12 @@ class Card:
     def get_filepath(self) -> str:
         return self._filepath
 
+
 class Player:
     def __init__(self) -> None:
         """All game variables are defined here. Handles player input."""
 
-        ## Game Variables
+        # Game Variables
         self.main_deck: list[Card] = []
         # create a copy of mainDeck to play
         self.temp_deck: list[Card] = []
@@ -92,12 +96,24 @@ class Player:
         self.difficulty: int = 8
 
         self.turn_state: str = 'continue'
-        self.level: int = 1
         self.turn: int = 1
 
-        ## Shop Variables
+        # Shop Variables
         self.shop_choices: list[Card] = []
         self.shop_size: int = 5
+
+    # Getting level from the API server
+    def get_level_api(self) -> int:
+        r = requests.get('http://localhost:3333/level')
+        return int(r.text)
+
+    # Increase the level in the API server
+    def increase_level_api(self) -> None:
+        requests.get("http://localhost:3333/increaseLevel")
+
+    # Reset the server level
+    def reset_level_api(self) -> None:
+        requests.get("http://localhost:3333/resetLevel")
 
     # play phase functions
     def reset_player(self) -> None:
@@ -115,7 +131,7 @@ class Player:
         self.difficulty: int = 8
 
         self.turn_state: str = 'continue'
-        self.level: int = 1
+        self.reset_level_api()
         self.turn: int = 1
 
         self.shop_choices: list[Card] = []
@@ -192,7 +208,7 @@ class Player:
 
         self.update_turn_state()
         if self.turn_state != "win":
-            self.update_cargo(number= -1)
+            self.update_cargo(number=-1)
             self.turn += 1
 
     def update_turn_state(self) -> None:
@@ -252,35 +268,40 @@ class Player:
         all_cards: list[Card] = load_dan_cards_csv("data/Card Data.csv")
         # pulls all cards that cost less that self.cargo
         if self.cargo != 0:
-            possible_cards: list[Card] = list(filter(lambda x: x.cost <= self.cargo, all_cards))
+            possible_cards: list[Card] = list(
+                filter(lambda x: x.cost <= self.cargo, all_cards))
             # cheaper cards are more likely to be drawn, caps at 5 times the odds of most expensive card.
-            draw_odds: list[int] = [min([self.cargo - card.cost + 1, 5]) for card in possible_cards]
+            draw_odds: list[int] = [
+                min([self.cargo - card.cost + 1, 5]) for card in possible_cards]
         else:
             # if cargo = 0, just generate any cards
             possible_cards = all_cards
             draw_odds = [1 for _ in range(len(possible_cards))]
 
-        self.shop_choices: list[Card] = choices(possible_cards, weights=draw_odds , k=5)
+        self.shop_choices: list[Card] = choices(
+            possible_cards, weights=draw_odds, k=5)
 
         # make choices unique in memory, not aliases
-        self.shop_choices: list[Card] = [card._copy() for card in self.shop_choices]
+        self.shop_choices: list[Card] = [card._copy()
+                                         for card in self.shop_choices]
 
     def next_level(self, reward: int) -> None:
         """Generates a new level. Randomly generate next level objective."""
 
         self.shop_choices.clear()
         self.update_cargo(reward)
-        self.level += 1
+        self.increase_level_api()
 
         # new objective is a math function that takes the current value and level
         # and generates a numerical difference in the + or - direction. target is never negative for now.
 
-        base_modifier: int = self.level*self.difficulty
+        base_modifier: int = self.get_level_api()*self.difficulty
         random_modifier: int = randint(0, base_modifier//2)
 
         modify_objective: int = base_modifier + random_modifier
 
-        is_increase: bool = choice([True, False]) or modify_objective > self.target_number
+        is_increase: bool = choice(
+            [True, False]) or modify_objective > self.target_number
 
         if is_increase:
             self.target_number += modify_objective
@@ -293,7 +314,7 @@ class Player:
         """Returns the target and current numbers."""
 
         return {
-            "target" : self.target_number,
+            "target": self.target_number,
             "current": self.current_number
         }
 
@@ -306,9 +327,9 @@ class Player:
         """Returns the level, turn, cargo, and cards left in `temp_deck`."""
 
         return {
-            "level"     : self.level,
-            "turn"      : self.turn,
-            "cargo"     : self.cargo,
+            "level": self.get_level_api(),
+            "turn": self.turn,
+            "cargo": self.cargo,
             "cards left": len(self.temp_deck)
         }
 
@@ -316,16 +337,16 @@ class Player:
         """Returns the shop choices, cargo, and cards in `main_deck`."""
 
         return {
-            "choices"    : [card.get_filepath() for card in self.shop_choices],
-            "costs"      : [card.cost for card in self.shop_choices],
-            "cargo"      : self.cargo,
+            "choices": [card.get_filepath() for card in self.shop_choices],
+            "costs": [card.cost for card in self.shop_choices],
+            "cargo": self.cargo,
             "deck length": len(self.main_deck)
         }
 
     def read_level(self) -> int:
         """Called on death to read the level of death."""
 
-        return self.level
+        return self.get_level_api()
 
     def read_deck_qty(self) -> str:
         """Returns a string showing the cards in the maindeck sorted by operation and value, divided into quantity."""
@@ -341,25 +362,28 @@ class Player:
         deck_str = [card.alt_str() for card in self.main_deck]
         for alt_str in deck_str:
             card_dict[alt_str] += 1
-        
-        maindeck_str_ls: list[str] = [f"{v}× [{k}]" for k,v in card_dict.items() if v != 0]
+
+        maindeck_str_ls: list[str] = [
+            f"{v}× [{k}]" for k, v in card_dict.items() if v != 0]
         length = 9
-        maindeck_str_split_ls = [(' '*5).join(maindeck_str_ls[i:i+length]) for i in range(0,len(maindeck_str_ls), length)]
+        maindeck_str_split_ls = [(' '*5).join(maindeck_str_ls[i:i+length])
+                                 for i in range(0, len(maindeck_str_ls), length)]
         maindeck_str = '\n'.join(maindeck_str_split_ls)
         return maindeck_str
 
 ############################################# BUTTON INPUTS ##########################################
 
+
 def load_dan_cards_csv(directory: str) -> list[Card]:
     """
     csv headings: operation,value,cost,filepath
-    
+
     **Args:**
 
     `directory`: Path to csv file.
 
     **Returns:**
-    
+
     A list of card objects.
     """
     with open(directory) as f:
@@ -367,10 +391,13 @@ def load_dan_cards_csv(directory: str) -> list[Card]:
         card_info: list[str] = f.read().split()[1:]
         cards = []
         for i in card_info:
-            card_operation, card_value, card_cost, filepath = tuple(i.split(sep=","))
+            card_operation, card_value, card_cost, filepath = tuple(
+                i.split(sep=","))
             if card_cost == '':
-                new_card = Card(card_operation, int(card_value), filepath=filepath)
+                new_card = Card(card_operation, int(
+                    card_value), filepath=filepath)
             else:
-                new_card = Card(card_operation, int(card_value), filepath=filepath, cost= int(card_cost))
+                new_card = Card(card_operation, int(card_value),
+                                filepath=filepath, cost=int(card_cost))
             cards.append(new_card)
     return cards
