@@ -372,7 +372,7 @@ def update_cargo(player: Player) -> None:
     """Called to update player cargo."""
 
     global Shop_cargo_left
-    Shop_cargo_left.config(text=f"CARGO LEFT: {player.cargo}")
+    Shop_cargo_left.config(text=f"CARGO LEFT: {player.get_cargo_api()}")
 
 
 def update_deck_contents(player: Player) -> None:
@@ -388,7 +388,7 @@ def update_buyable(player: Player) -> None:
 
     global shop_screen_cards_cost_data, shop_screen_cards_button
     for i, cost in enumerate(shop_screen_cards_cost_data):
-        if cost > player.cargo:
+        if cost > player.get_cargo_api():
             shop_screen_cards_button[i].config(state="disabled")
 
 ############################################### Create Planet Message ##################################################

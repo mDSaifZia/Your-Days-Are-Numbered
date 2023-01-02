@@ -90,7 +90,6 @@ class Player:
         self.hand: list[Card] = []
         self.hand_size = 5
 
-        self.cargo: int = 10
         self.current_number: int = 0
         self.target_number: int = 10
         self.difficulty: int = 8
@@ -115,6 +114,19 @@ class Player:
     def reset_level_api(self) -> None:
         requests.post("http://localhost:3333/resetLevel")
 
+    # Getting Cargo from the API server
+    def get_cargo_api(self) -> int:
+        r = requests.get('http://localhost:3333/cargo')
+        return int(r.text)
+
+    # Update Cargo in the API server
+    def update_cargo_api(self, amount: int) -> None:
+        requests.post('http://localhost:3333/updateCargo', data=str(amount))
+
+    # Reset Cargo after conceding in the API server
+    def reset_cargo_api(self) -> None:
+        requests.post('http://localhost:3333/resetCargo')
+
     # play phase functions
     def reset_player(self) -> None:
         """Resets the player at the start of the game."""
@@ -125,7 +137,6 @@ class Player:
         self.hand: list[Card] = []
         self.hand_size = 5
 
-        self.cargo: int = 10
         self.current_number: int = 0
         self.target_number: int = 10
         self.difficulty: int = 8
@@ -133,6 +144,7 @@ class Player:
         self.turn_state: str = 'continue'
         self.reset_level_api()
         self.turn: int = 1
+        self.reset_cargo_api()
 
         self.shop_choices: list[Card] = []
         self.shop_size: int = 5
@@ -182,13 +194,6 @@ class Player:
         assert card.usable
         self.current_number = card.use(self.current_number)
 
-    def update_cargo(self, number: int) -> None:
-        """Updates cargo, used at the end of turn. Lowest cargo is 0."""
-
-        self.cargo += number
-        if self.cargo < 0:
-            self.cargo = 0
-
     def is_win(self) -> bool:
         """Check win condition."""
         return self.current_number == self.target_number
@@ -208,7 +213,7 @@ class Player:
 
         self.update_turn_state()
         if self.turn_state != "win":
-            self.update_cargo(number=-1)
+            self.update_cargo_api(amount=-1)
             self.turn += 1
 
     def update_turn_state(self) -> None:
@@ -257,8 +262,8 @@ class Player:
         Adds card to `main_deck` if possible. buying duplicates are not allowed."""
 
         card: Card = self.shop_choices[index]
-        assert card.cost <= self.cargo, "insufficient funds!"
-        self.cargo -= card.cost
+        assert card.cost <= self.get_cargo_api(), "insufficient funds!"
+        self.update_cargo_api(-card.cost)
         self.main_deck.append(card._copy())
         self.shop_choices[index].void()
 
@@ -266,13 +271,13 @@ class Player:
         """Fills shop with items based on how much cargo player has."""
 
         all_cards: list[Card] = load_dan_cards_csv("data/Card Data.csv")
-        # pulls all cards that cost less that self.cargo
-        if self.cargo != 0:
+        # pulls all cards that cost less than cargo
+        if self.get_cargo_api() != 0:
             possible_cards: list[Card] = list(
-                filter(lambda x: x.cost <= self.cargo, all_cards))
+                filter(lambda x: x.cost <= self.get_cargo_api(), all_cards))
             # cheaper cards are more likely to be drawn, caps at 5 times the odds of most expensive card.
             draw_odds: list[int] = [
-                min([self.cargo - card.cost + 1, 5]) for card in possible_cards]
+                min([self.get_cargo_api() - card.cost + 1, 5]) for card in possible_cards]
         else:
             # if cargo = 0, just generate any cards
             possible_cards = all_cards
@@ -289,7 +294,7 @@ class Player:
         """Generates a new level. Randomly generate next level objective."""
 
         self.shop_choices.clear()
-        self.update_cargo(reward)
+        self.update_cargo_api(reward)
         self.increase_level_api()
 
         # new objective is a math function that takes the current value and level
@@ -329,7 +334,7 @@ class Player:
         return {
             "level": self.get_level_api(),
             "turn": self.turn,
-            "cargo": self.cargo,
+            "cargo": self.get_cargo_api(),
             "cards left": len(self.temp_deck)
         }
 
@@ -339,7 +344,7 @@ class Player:
         return {
             "choices": [card.get_filepath() for card in self.shop_choices],
             "costs": [card.cost for card in self.shop_choices],
-            "cargo": self.cargo,
+            "cargo": self.get_cargo_api(),
             "deck length": len(self.main_deck)
         }
 
