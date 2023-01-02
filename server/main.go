@@ -30,13 +30,31 @@ type Player struct {
 var player = Player{level: 1}
 
 func increaseLevel(w http.ResponseWriter, r *http.Request) {
-	player.level = player.level + 1
+	switch r.Method {
+	case "POST":
+		player.level = player.level + 1
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "not found"}`))
+	}
 }
 
 func resetLevel(w http.ResponseWriter, r *http.Request) {
-	player.level = 1
+	switch r.Method {
+	case "POST":
+		player.level = 1
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "not found"}`))
+	}
 }
 
 func getLevel(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, strconv.Itoa(player.level))
+	switch r.Method {
+	case "GET":
+		io.WriteString(w, strconv.Itoa(player.level))
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "not found"}`))
+	}
 }

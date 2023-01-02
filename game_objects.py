@@ -109,11 +109,11 @@ class Player:
 
     # Increase the level in the API server
     def increase_level_api(self) -> None:
-        requests.get("http://localhost:3333/increaseLevel")
+        requests.post("http://localhost:3333/increaseLevel")
 
     # Reset the server level
     def reset_level_api(self) -> None:
-        requests.get("http://localhost:3333/resetLevel")
+        requests.post("http://localhost:3333/resetLevel")
 
     # play phase functions
     def reset_player(self) -> None:
