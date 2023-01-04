@@ -95,7 +95,6 @@ class Player:
         self.difficulty: int = 8
 
         self.turn_state: str = 'continue'
-        self.turn: int = 1
 
         # Shop Variables
         self.shop_choices: list[Card] = []
@@ -127,6 +126,19 @@ class Player:
     def reset_cargo_api(self) -> None:
         requests.post('http://localhost:3333/resetCargo')
 
+    # Getting turn from the API server
+    def get_turn_api(self) -> int:
+        r = requests.get('http://localhost:3333/turn')
+        return int(r.text)
+
+    # Increase the turn in the API server
+    def increase_turn_api(self) -> None:
+        requests.post("http://localhost:3333/increaseTurn")
+
+    # Reset the server turn
+    def reset_turn_api(self) -> None:
+        requests.post("http://localhost:3333/resetTurn")
+
     # play phase functions
     def reset_player(self) -> None:
         """Resets the player at the start of the game."""
@@ -143,8 +155,8 @@ class Player:
 
         self.turn_state: str = 'continue'
         self.reset_level_api()
-        self.turn: int = 1
         self.reset_cargo_api()
+        self.reset_turn_api()
 
         self.shop_choices: list[Card] = []
         self.shop_size: int = 5
@@ -163,7 +175,7 @@ class Player:
         shuffle(self.temp_deck)
         self.hand.clear()
 
-        self.turn: int = 1
+        self.reset_turn_api()
         self.turn_state: str = 'continue'
 
     def draw(self) -> None:
@@ -214,7 +226,7 @@ class Player:
         self.update_turn_state()
         if self.turn_state != "win":
             self.update_cargo_api(amount=-1)
-            self.turn += 1
+            self.increase_turn_api()
 
     def update_turn_state(self) -> None:
         """
@@ -333,7 +345,7 @@ class Player:
 
         return {
             "level": self.get_level_api(),
-            "turn": self.turn,
+            "turn": self.get_turn_api(),
             "cargo": self.get_cargo_api(),
             "cards left": len(self.temp_deck)
         }

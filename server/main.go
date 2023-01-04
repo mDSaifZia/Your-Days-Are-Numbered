@@ -17,6 +17,9 @@ func main() {
 	http.HandleFunc("/cargo", getCargo)
 	http.HandleFunc("/updateCargo", updateCargo)
 	http.HandleFunc("/resetCargo", resetCargo)
+	http.HandleFunc("/turn", getTurn)
+	http.HandleFunc("/increaseTurn", increaseTurn)
+	http.HandleFunc("/resetTurn", resetTurn)
 
 	err := http.ListenAndServe(":3333", nil)
 	if errors.Is(err, http.ErrServerClosed) {
@@ -30,9 +33,10 @@ func main() {
 type Player struct {
 	level int
 	cargo int
+	turn  int
 }
 
-var player = Player{level: 1, cargo: 10}
+var player = Player{level: 1, cargo: 10, turn: 1}
 
 func increaseLevel(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -101,6 +105,36 @@ func resetCargo(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		player.cargo = 10
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "not found"}`))
+	}
+}
+
+func getTurn(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		io.WriteString(w, strconv.Itoa(player.turn))
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "not found"}`))
+	}
+}
+
+func increaseTurn(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		player.turn = player.turn + 1
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "not found"}`))
+	}
+}
+
+func resetTurn(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		player.turn = 1
 	default:
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(`{"message": "not found"}`))
