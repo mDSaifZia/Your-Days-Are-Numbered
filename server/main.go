@@ -152,3 +152,23 @@ func getTarget(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"message": "not found"}`))
 	}
 }
+
+func updateTarget(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "not found"}`))
+	}
+}
+
+func resetTarget(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		player.target = 10
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "not found"}`))
+	}
+}
