@@ -156,7 +156,7 @@ func getTarget(w http.ResponseWriter, r *http.Request) {
 func updateTarget(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-
+		// TODO: Put update target logic with rng
 	default:
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(`{"message": "not found"}`))
